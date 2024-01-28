@@ -1,0 +1,8 @@
+flask
+vanna
+vanna[openai]
+db-dtypes
+python-dotenv
+pyodbc
+pandas
+openai
