@@ -1,0 +1,9 @@
+flyctl launch
+flyctl deploy
+flyctl auth login
+flyctl auth logout
+flyctl machine restart d8d9914f2170d8
+
+Instalar o fly manualmente
+curl -L https://fly.io/install.sh | sh
+export PATH=/home/codespace/.fly/bin
