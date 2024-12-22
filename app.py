@@ -6,51 +6,41 @@ from flask import Flask, jsonify, Response, request, redirect, url_for
 import flask
 import os
 from cache import MemoryCache
-from vanna.openai.openai_chat import OpenAI_Chat
-from vanna.vannadb.vannadb_vector import VannaDB_VectorStore
+from vanna.openai import OpenAI_Chat
+from vanna.vannadb import VannaDB_VectorStore
 from vanna.remote import VannaDefault
 import pandas as pd
 import pyodbc
 
-api_key = os.getenv("VANNA_API_KEY")
-vanna_model_name = os.getenv("VANNA_MODEL") # This is the name of the RAG model. This is typically associated with a specific dataset.
+# Load environment variables
+MY_VANNA_MODEL = os.getenv("VANNA_MODEL")   # Your model name from https://vanna.ai/account/profile
+MY_VANNA_API_KEY = os.getenv('VANNA_API_KEY')  # Your API key from https://vanna.ai/account/profile
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')  # Your OpenAI API key
+OPENAI_MODEL = os.getenv('OPENAI_MODEL')  # Your OpenAI model name
+AZURESQL_SERVER = os.getenv('AZURESQL_SERVER')  # Your Azure SQL Server name
+AZURESQL_DATABASE = os.getenv('AZURESQL_DATABASE')  # Your Azure SQL Database name
+AZURESQL_USERNAME = os.getenv('AZURESQL_USERNAME')  # Your Azure SQL username
+AZURESQL_PASSWORD = os.getenv('AZURESQL_PASSWORD')  # Your Azure
 
 app = Flask(__name__, static_url_path='')
 
 # SETUP
 cache = MemoryCache()
-
-# from vanna.local import LocalContext_OpenAI
-# vn = LocalContext_OpenAI()
-
+        
 class MyVanna(VannaDB_VectorStore, OpenAI_Chat):
     def __init__(self, config=None):
-        VannaDB_VectorStore.__init__(self, vanna_model=vanna_model_name, vanna_api_key=api_key, config=config)
+        VannaDB_VectorStore.__init__(self, vanna_model=MY_VANNA_MODEL, vanna_api_key=MY_VANNA_API_KEY, config=config)
         OpenAI_Chat.__init__(self, config=config)
 
-vn = MyVanna(config={'api_key': os.getenv('OPENAI_API_KEY'), 'model': os.getenv('OPENAI_MODEL') })
+vn = MyVanna(config={'api_key': OPENAI_API_KEY, 'model': OPENAI_MODEL})
+
 
 # Connection details for Azure SQL Database
-server = os.getenv('AZURESQL_SERVER')  # Replace with your server name
-database = os.getenv('AZURESQL_DATABASE') # Replace with your database name
-username = os.getenv('AZURESQL_USERNAME') # Replace with your username
-password = os.getenv('AZURESQL_PASSWORD') # Replace with your password
 driver = '{ODBC Driver 17 for SQL Server}'   # Driver you need to connect to Azure SQL Database
 
 # Create connection string
-conn_str = f'DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password}'
-
-# Create connection object
-conn = pyodbc.connect(conn_str)
-
-# Define a function that takes a SQL query as a string and returns a pandas DataFrame
-def run_sql(sql: str) -> pd.DataFrame:
-    df = pd.read_sql_query(sql, conn)
-    return df
-
-# Assuming vn is a variable or object you are using
-vn.run_sql = run_sql
-vn.run_sql_is_set = True
+conn_str = f'DRIVER={driver};SERVER={AZURESQL_SERVER};DATABASE={AZURESQL_DATABASE};UID={AZURESQL_USERNAME};PWD={AZURESQL_PASSWORD}'
+vn.connect_to_mssql(odbc_conn_str=conn_str) # You can use the ODBC connection string here
 
 # NO NEED TO CHANGE ANYTHING BELOW THIS LINE
 def requires_cache(fields):
@@ -195,9 +185,9 @@ def add_training_data():
         return jsonify({"type": "error", "error": str(e)})
 
 @app.route('/api/v0/generate_followup_questions', methods=['GET'])
-@requires_cache(['df', 'question'])
-def generate_followup_questions(id: str, df, question):
-    followup_questions = vn.generate_followup_questions(question=question, df=df)
+@requires_cache(['df', 'question', 'sql'])
+def generate_followup_questions(id: str, df, question, sql):
+    followup_questions = vn.generate_followup_questions(question=question, sql=sql, df=df)
 
     cache.set(id=id, field='followup_questions', value=followup_questions)
 
@@ -236,4 +226,4 @@ def root():
     return app.send_static_file('index.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(debug=True)
