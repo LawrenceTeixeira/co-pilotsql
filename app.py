@@ -81,7 +81,7 @@ def generate_sql():
         return jsonify({"type": "error", "error": "No question provided"})
 
     id = cache.generate_id(question=question)
-    sql = vn.generate_sql(question=question)
+    sql = vn.generate_sql(question=question, allow_llm_to_see_data=True)
 
     cache.set(id=id, field='question', value=question)
     cache.set(id=id, field='sql', value=sql)
