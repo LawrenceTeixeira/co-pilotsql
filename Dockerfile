@@ -14,7 +14,7 @@ RUN pip install -r requirements.txt
 COPY . /app
 
 # Expose port 8080
-EXPOSE 8080
+EXPOSE 5000
 
 # Configure the container to run in an executed manner
 CMD ["python", "app.py"]
